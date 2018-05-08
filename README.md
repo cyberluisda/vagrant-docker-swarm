@@ -1,18 +1,18 @@
 # Docker Swarm Vagrant
 
 This is a simple Vagrantfile which can be used to spin few nodes with Docker 1.12+ installed. You
-can play with Docker Swarm on it. Boxes are Ubuntu Trusty amd64. 
+can play with Docker Swarm on it. Boxes are Ubuntu Trusty amd64.
 
 # Docker Swarm
 
-Docker Swarm is a Docker clustering solution, it turns multiple physical (or virtual) hosts into a one cluster, which practically behaves as a single Docker host. Swarm additionally gives you tools and mechiasms to easily scale your containers and create managed services with automatic load balancing to the exposed ports. 
+Docker Swarm is a Docker clustering solution, it turns multiple physical (or virtual) hosts into a one cluster, which practically behaves as a single Docker host. Swarm additionally gives you tools and mechiasms to easily scale your containers and create managed services with automatic load balancing to the exposed ports.
 
-Swarm uses [Raft Consensus Algortihm](http://thesecretlivesofdata.com/raft/) to manage the cluster state. Swarm can tolerate `(N-1)/2` failures and needs `(N/2)+1` nodes to agree on values. 
+Swarm uses [Raft Consensus Algortihm](http://thesecretlivesofdata.com/raft/) to manage the cluster state. Swarm can tolerate `(N-1)/2` failures and needs `(N/2)+1` nodes to agree on values.
 
 # Customize
 
 By default `vagrant up` spins up 3 machines: `manager`, `worker1`, `worker2`. You can adjust how many
-workers you want in the `Vagrantfile`, by setting the `numworkers` variable. Manager, by default, has address "192.168.10.2", workers have consecutive ips. 
+workers you want in the `Vagrantfile`, by setting the `numworkers` variable. Manager, by default, has address "192.168.10.2", workers have consecutive ips.
 
 ```ruby
 numworkers = 2
@@ -29,16 +29,18 @@ numcpu = 1
 ```
 
 
-`/etc/hosts` on every machine is populated with an IP address and a name of every other machine, so that names are resolved within the cluster. This mechanism is not idempotent, reprovisioning will append the hosts again. 
+`/etc/hosts` on every machine is populated with an IP address and a name of every other machine, so that names are resolved within the cluster. This mechanism is not idempotent, reprovisioning will append the hosts again.
 
 # Auto mode
 
-By default, vagrant will create pure machines with docker installed. You can run 
+By default, vagrant will create pure machines with docker installed. You can run
 `AUTO_START_SWARM=true vagrant up` to provision swarm automatically. You will get an already running Docker swarm cluster.
+
+In same way you can run with `AUTO_GLUSTERFS=true` (`AUTO_START_SWARM=true AUTO_GLUSTERFS=true vagrant up`) in order to get GlusterFS distributed in all workers and mounted in `/swarm/volumes` path. This path could be used to docker _statefull_ containers that can be _re-started_ in other node without lost previous state.
 
 # Play
 
-After starting swarm, you can use my testing Docker image to play with. It is called `darek/goweb` and is a super simple Web app, displaying the hostname, and a version. There are three tags: `1.0`, `2.0` and `latest`. They can be used to play with swarm rolling update feature. The container exposes port 8080. 
+After starting swarm, you can use my testing Docker image to play with. It is called `darek/goweb` and is a super simple Web app, displaying the hostname, and a version. There are three tags: `1.0`, `2.0` and `latest`. They can be used to play with swarm rolling update feature. The container exposes port 8080.
 
 Go to the master node and start docker swarm:
 
@@ -66,7 +68,7 @@ Now create a web service, with 1 replica, on any of the nodes:
 ```bash
 docker service create --name web --replicas 1 --publish 8080:8080 darek/goweb:1.0
 ```
-You can see the status od the service with `docker service ps web`. 
+You can see the status od the service with `docker service ps web`.
 ```
 vagrant@manager:~$ docker service  ps web
 ID                         NAME   IMAGE            NODE     DESIRED STATE  CURRENT STATE           ERROR
@@ -75,7 +77,7 @@ ID                         NAME   IMAGE            NODE     DESIRED STATE  CURRE
 
 You can scale up the service if you want:
 
-```bash 
+```bash
 docker service scale web=4
 ```
 
@@ -86,10 +88,10 @@ vagrant ssh worker1
 sudo apt-get install httpie -y
 http localhost:8080
 ```
-Do the http command serveral times, you will notice different hostnames every time. This is because swarm handler load balancing for us. 
+Do the http command serveral times, you will notice different hostnames every time. This is because swarm handler load balancing for us.
 
-Let's do a rolling update of the service, first let's scale it to 10 - you already know how. 
-First we will update the defintion of the service to say that updates will have a delay of 5s.  
+Let's do a rolling update of the service, first let's scale it to 10 - you already know how.
+First we will update the defintion of the service to say that updates will have a delay of 5s.
 
 ```bash
 docker service update --update-delay 5s web
@@ -99,9 +101,9 @@ Let's us update the service now:
 ```bash
 docker service update --image darek/goweb:2.0 web
 ```
-Now docker will update service one by one with a 5s delay between the updates. If you want to introduce parallelism to updates you can specify if with the `--update-parallelism` flag. 
+Now docker will update service one by one with a 5s delay between the updates. If you want to introduce parallelism to updates you can specify if with the `--update-parallelism` flag.
 
-```bash 
+```bash
 docker service update --update-parallelism 2 web
 ```
 
@@ -128,7 +130,7 @@ f49k99apn8yzve0uh8zsyigw6  web.2       darek/goweb:1.0  worker1  Running        
 
 Some services are already updated. Nice.
 
-You can also inspect the service by `docker service inspect --pretty web`. 
+You can also inspect the service by `docker service inspect --pretty web`.
 
 ```bash
 vagrant@manager:~$ docker service inspect --pretty web
@@ -155,20 +157,20 @@ Ports:
  PublishedPort = 8080
 ```
 
-After the update, you can verify that the version is really 2.0 with the httpie command. 
-Let's now delete the service. 
+After the update, you can verify that the version is really 2.0 with the httpie command.
+Let's now delete the service.
 
 ```bash
 docker service rm web
 ```
 
-And shutdown the shop for good: `vagrant destroy --force`. 
+And shutdown the shop for good: `vagrant destroy --force`.
 
-# License 
+# License
 
 MIT
 
-# Author 
-Inspired by `denverdino/docker-swarm-mode-vagrant` and `lowescott/learning-tools` repos. 
+# Author
+Inspired by `denverdino/docker-swarm-mode-vagrant` and `lowescott/learning-tools` repos.
 
 Dariusz Dwornikowski @tdi
