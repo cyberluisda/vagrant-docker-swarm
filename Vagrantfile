@@ -83,11 +83,26 @@ Vagrant.configure("2") do |config|
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
       end
       if auto
-        i.vm.provision "shell", inline: "docker node ls | fgrep manager || docker swarm init --advertise-addr #{manager_ip}"
-        i.vm.provision "shell", inline: "docker swarm join-token -q worker > /vagrant/token"
+        i.vm.provision "shell", inline: "
+          if docker node ls | fgrep manager >/dev/null
+          then
+            echo 'manager detect as part of docker swarn. Init swarm skiped'
+          else
+            echo '** Swarn init #{manager_ip}'
+            docker swarm init --advertise-addr #{manager_ip}
+          fi
+        "
+        i.vm.provision "shell", inline: "echo '** Generating join-token for workers'; docker swarm join-token -q worker > /vagrant/token"
         if gluster
           # Generate ssh keys in order to allow execution of remote commands between workers
-          i.vm.provision "shell", inline: "if [ -f /vagrant/id_rsa_provision ]; then echo 'SSH keys exists on /vagrant/id_rsa_provision. Use them'; else ssh-keygen -t rsa -b 4096 -C provision -f /vagrant/id_rsa_provision -q -N ''; fi"
+          i.vm.provision "shell", inline: "
+            if [ -f /vagrant/id_rsa_provision ]
+            then
+              echo 'SSH keys exists on /vagrant/id_rsa_provision. Use them'
+            else
+              ssh-keygen -t rsa -b 4096 -C provision -f /vagrant/id_rsa_provision -q -N ''
+            fi
+          "
           i.vm.provision "shell", inline: "cat /vagrant/id_rsa_provision.pub >> ~vagrant/.ssh/authorized_keys"
         end
       end
@@ -152,7 +167,7 @@ Vagrant.configure("2") do |config|
           echo '** Joining node to swarm (cheking #{instance[:name]} remotely on #{manager_ip})'
           eval `ssh-agent -s`
           ssh-add /vagrant/id_rsa_provision
-          ssh -o StrictHostKeyChecking=no vagrant@#{manager_ip} 'docker node ls' | fgrep '#{instance[:name]}' \
+          ssh -o StrictHostKeyChecking=no vagrant@#{manager_ip} 'docker node ls' | fgrep '#{instance[:name]}' > /dev/null \
           || docker swarm join --advertise-addr #{instance[:ip]} --listen-addr #{instance[:ip]}:2377 --token `cat /vagrant/token` #{manager_ip}:2377
         "
       end
