@@ -20,7 +20,7 @@ other node.
    vagrant ssh manager
    ```
 
-1. Create docker service with status
+1. Create docker service that run in worker only with status (_statefull_)
 
    ```bash
    docker service create \
@@ -92,3 +92,21 @@ other node.
    ```html
    <html><body>Created at Tue May  8 16:24:13 UTC 2018</body></html>
    ```
+
+# Cleaning/restore cluster
+
+* In order to remove _test service_ run in `manager`:
+
+  ```bash
+  docker service rm web-stateless
+  ```
+
+* In order to add _worker node_ to cluster again. Exit `manager` and execute:
+
+  ```bash
+  vagrant ssh -c 'docker swarm leave' worker1
+  AUTO_START_SWARM=true AUTO_GLUSTERFS=true vagrant provision
+  ```
+
+  **Note** that in this case _worker node_ removed in previous step is
+  `worker1`, replace it with right value in `ssh` command
