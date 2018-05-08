@@ -79,9 +79,9 @@ Vagrant.configure("2") do |config|
       if File.file?("./hosts")
         i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
-      end 
-      if auto 
-        i.vm.provision "shell", inline: "docker swarm init --advertise-addr #{manager_ip}"
+      end
+      if auto
+        i.vm.provision "shell", inline: "docker node ls | fgrep manager || docker swarm init --advertise-addr #{manager_ip}"
         i.vm.provision "shell", inline: "docker swarm join-token -q worker > /vagrant/token"
       end
     end
@@ -98,12 +98,18 @@ Vagrant.configure("2") do |config|
         i.proxy.no_proxy = no_proxy
       end
       i.vm.provision "shell", path: "./provision.sh"
-      if File.file?("./hosts") 
+      if File.file?("./hosts")
         i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
-      end 
+      end
       if auto
-        i.vm.provision "shell", inline: "docker swarm join --advertise-addr #{instance[:ip]} --listen-addr #{instance[:ip]}:2377 --token `cat /vagrant/token` #{manager_ip}:2377"
+        i.vm.provision "shell", inline: "
+          echo '** Joining node to swarm (cheking #{instance[:name]} remotely on #{manager_ip})'
+          eval `ssh-agent -s`
+          ssh-add /vagrant/id_rsa_provision
+          ssh -o StrictHostKeyChecking=no vagrant@#{manager_ip} 'docker node ls' | fgrep '#{instance[:name]}' \
+          || docker swarm join --advertise-addr #{instance[:ip]} --listen-addr #{instance[:ip]}:2377 --token `cat /vagrant/token` #{manager_ip}:2377
+        "
       end
     end 
   end
